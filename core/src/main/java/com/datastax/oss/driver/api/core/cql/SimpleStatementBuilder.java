@@ -17,10 +17,9 @@ package com.datastax.oss.driver.api.core.cql;
 
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.internal.core.cql.DefaultSimpleStatement;
-import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
-import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import net.jcip.annotations.NotThreadSafe;
@@ -31,8 +30,8 @@ public class SimpleStatementBuilder
 
   private String query;
   private CqlIdentifier keyspace;
-  private ImmutableList.Builder<Object> positionalValuesBuilder;
-  private ImmutableMap.Builder<CqlIdentifier, Object> namedValuesBuilder;
+  private final List<Object> positionalValues = new ArrayList<>();
+  private final Map<CqlIdentifier, Object> namedValues = new HashMap<>();
 
   public SimpleStatementBuilder(String query) {
     this.query = query;
@@ -47,11 +46,10 @@ public class SimpleStatementBuilder
 
     this.query = template.getQuery();
     if (!template.getPositionalValues().isEmpty()) {
-      this.positionalValuesBuilder = ImmutableList.builder().addAll(template.getPositionalValues());
+      this.positionalValues.addAll(template.getPositionalValues());
     }
     if (!template.getNamedValues().isEmpty()) {
-      this.namedValuesBuilder =
-          ImmutableMap.<CqlIdentifier, Object>builder().putAll(template.getNamedValues());
+      this.namedValues.putAll(template.getNamedValues());
     }
   }
 
@@ -77,27 +75,21 @@ public class SimpleStatementBuilder
 
   /** @see SimpleStatement#setPositionalValues(List) */
   public SimpleStatementBuilder addPositionalValue(Object value) {
-    if (namedValuesBuilder != null) {
+    if (!namedValues.isEmpty()) {
       throw new IllegalArgumentException(
           "Can't have both positional and named values in a statement.");
     }
-    if (positionalValuesBuilder == null) {
-      positionalValuesBuilder = ImmutableList.builder();
-    }
-    positionalValuesBuilder.add(value);
+    positionalValues.add(value);
     return this;
   }
 
   /** @see SimpleStatement#setPositionalValues(List) */
   public SimpleStatementBuilder addPositionalValues(Iterable<Object> values) {
-    if (namedValuesBuilder != null) {
+    if (!namedValues.isEmpty()) {
       throw new IllegalArgumentException(
           "Can't have both positional and named values in a statement.");
     }
-    if (positionalValuesBuilder == null) {
-      positionalValuesBuilder = ImmutableList.builder();
-    }
-    positionalValuesBuilder.addAll(values);
+    values.forEach(positionalValues::add);
     return this;
   }
 
@@ -108,20 +100,17 @@ public class SimpleStatementBuilder
 
   /** @see SimpleStatement#setPositionalValues(List) */
   public SimpleStatementBuilder clearPositionalValues() {
-    positionalValuesBuilder = null;
+    positionalValues.clear();
     return this;
   }
 
   /** @see SimpleStatement#setNamedValuesWithIds(Map) */
   public SimpleStatementBuilder addNamedValue(CqlIdentifier name, Object value) {
-    if (positionalValuesBuilder != null) {
+    if (!positionalValues.isEmpty()) {
       throw new IllegalArgumentException(
           "Can't have both positional and named values in a statement.");
     }
-    if (namedValuesBuilder == null) {
-      namedValuesBuilder = ImmutableMap.builder();
-    }
-    namedValuesBuilder.put(name, value);
+    namedValues.put(name, value);
     return this;
   }
 
@@ -135,7 +124,7 @@ public class SimpleStatementBuilder
 
   /** @see SimpleStatement#setNamedValuesWithIds(Map) */
   public SimpleStatementBuilder clearNamedValues() {
-    namedValuesBuilder = null;
+    namedValues.clear();
     return this;
   }
 
@@ -143,10 +132,8 @@ public class SimpleStatementBuilder
   public SimpleStatement build() {
     return new DefaultSimpleStatement(
         query,
-        (positionalValuesBuilder == null)
-            ? Collections.emptyList()
-            : positionalValuesBuilder.build(),
-        (namedValuesBuilder == null) ? Collections.emptyMap() : namedValuesBuilder.build(),
+        positionalValues,
+        namedValues,
         configProfileName,
         configProfile,
         keyspace,

@@ -4,6 +4,7 @@
 
 ### 4.0.0-alpha4 (in progress)
 
+- [improvement] JAVA-1569: Allow null to be used in positional and named values in statements
 - [improvement] JAVA-1801: Revisit NodeStateListener and SchemaChangeListener APIs
 - [improvement] JAVA-1759: Revisit metrics API
 - [improvement] JAVA-1776: Use concurrency annotations

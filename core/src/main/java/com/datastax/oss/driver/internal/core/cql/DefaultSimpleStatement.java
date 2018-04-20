@@ -19,9 +19,8 @@ import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
-import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
-import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
 import java.nio.ByteBuffer;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import net.jcip.annotations.Immutable;
@@ -65,8 +64,8 @@ public class DefaultSimpleStatement implements SimpleStatement {
       throw new IllegalArgumentException("Can't have both positional and named values");
     }
     this.query = query;
-    this.positionalValues = ImmutableList.copyOf(positionalValues);
-    this.namedValues = ImmutableMap.copyOf(namedValues);
+    this.positionalValues = Collections.unmodifiableList(positionalValues);
+    this.namedValues = Collections.unmodifiableMap(namedValues);
     this.configProfileName = configProfileName;
     this.configProfile = configProfile;
     this.keyspace = keyspace;

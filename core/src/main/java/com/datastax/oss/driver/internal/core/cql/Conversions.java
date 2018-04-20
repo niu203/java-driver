@@ -82,6 +82,7 @@ import com.datastax.oss.protocol.internal.util.Bytes;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -216,7 +217,11 @@ public class Conversions {
     } else {
       List<ByteBuffer> encodedValues = new ArrayList<>(values.size());
       for (Object value : values) {
-        encodedValues.add(encode(value, codecRegistry, protocolVersion));
+        if (value == null) {
+          encodedValues.add(null);
+        } else {
+          encodedValues.add(encode(value, codecRegistry, protocolVersion));
+        }
       }
       return encodedValues;
     }
@@ -229,12 +234,17 @@ public class Conversions {
     if (values.isEmpty()) {
       return Collections.emptyMap();
     } else {
-      ImmutableMap.Builder<String, ByteBuffer> encodedValues = ImmutableMap.builder();
+      Map<String, ByteBuffer> encodedValues = new HashMap<>();
       for (Map.Entry<CqlIdentifier, Object> entry : values.entrySet()) {
-        encodedValues.put(
-            entry.getKey().asInternal(), encode(entry.getValue(), codecRegistry, protocolVersion));
+        if (entry.getValue() == null) {
+          encodedValues.put(entry.getKey().asInternal(), null);
+        } else {
+          encodedValues.put(
+              entry.getKey().asInternal(),
+              encode(entry.getValue(), codecRegistry, protocolVersion));
+        }
       }
-      return encodedValues.build();
+      return encodedValues;
     }
   }
 
