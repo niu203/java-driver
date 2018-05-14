@@ -15,11 +15,15 @@
  */
 package com.datastax.oss.driver.internal.core.cql;
 
+import static com.datastax.oss.protocol.internal.FrameCodec.headerEncodedSize;
+import static com.datastax.oss.protocol.internal.request.query.QueryOptions.queryFlagsSize;
+
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.CqlSession;
 import com.datastax.oss.driver.api.core.ProtocolVersion;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
+import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.cql.AsyncResultSet;
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.BatchableStatement;
@@ -50,6 +54,7 @@ import com.datastax.oss.driver.api.core.servererrors.UnauthorizedException;
 import com.datastax.oss.driver.api.core.servererrors.UnavailableException;
 import com.datastax.oss.driver.api.core.servererrors.WriteFailureException;
 import com.datastax.oss.driver.api.core.servererrors.WriteTimeoutException;
+import com.datastax.oss.driver.api.core.session.Request;
 import com.datastax.oss.driver.api.core.type.codec.TypeCodecs;
 import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.datastax.oss.driver.internal.core.ProtocolFeature;
@@ -58,14 +63,17 @@ import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
 import com.datastax.oss.driver.internal.core.metadata.token.ByteOrderedToken;
 import com.datastax.oss.driver.internal.core.metadata.token.Murmur3Token;
 import com.datastax.oss.driver.internal.core.metadata.token.RandomToken;
+import com.datastax.oss.driver.shaded.guava.common.base.Preconditions;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
 import com.datastax.oss.protocol.internal.Message;
+import com.datastax.oss.protocol.internal.PrimitiveSizes;
 import com.datastax.oss.protocol.internal.ProtocolConstants;
 import com.datastax.oss.protocol.internal.request.Batch;
 import com.datastax.oss.protocol.internal.request.Execute;
 import com.datastax.oss.protocol.internal.request.Query;
 import com.datastax.oss.protocol.internal.request.query.QueryOptions;
+import com.datastax.oss.protocol.internal.request.query.Values;
 import com.datastax.oss.protocol.internal.response.Error;
 import com.datastax.oss.protocol.internal.response.Result;
 import com.datastax.oss.protocol.internal.response.error.AlreadyExists;
@@ -84,6 +92,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 /**
  * Utility methods to convert to/from protocol messages.
@@ -440,5 +449,78 @@ public class Conversions {
       default:
         return new ProtocolError(node, "Unknown error code: " + errorMessage.code);
     }
+  }
+
+  /** Returns a common size for all kinds of Request implementations. */
+  static int minimumRequestSize(Request statement, DriverContext context) {
+    Preconditions.checkArgument(
+        context instanceof InternalDriverContext,
+        "DriverContext provided cannot be used to calculate statement's size");
+
+    /* Header and payload are common inside a Frame at the protocol level */
+
+    // Frame header has a fixed size of 9 for protocol version > V3, which includes Frame flags size
+    int size = headerEncodedSize();
+
+    if (!statement.getCustomPayload().isEmpty()
+        && ((InternalDriverContext) context)
+            .protocolVersionRegistry()
+            .supports(context.protocolVersion(), ProtocolFeature.CUSTOM_PAYLOAD)) {
+      size += PrimitiveSizes.sizeOfBytesMap(statement.getCustomPayload());
+    }
+
+    /* These are options in the protocol inside a frame that are common to all Statements */
+
+    size += queryFlagsSize(context.protocolVersion().getCode());
+
+    size += PrimitiveSizes.SHORT; // size of consistency level
+    size += PrimitiveSizes.SHORT; // size of serial consistency level
+    size += PrimitiveSizes.LONG; // size of default timestamp
+
+    return size;
+  }
+
+  /**
+   * Returns the size in bytes of a simple statement's values, depending on whether the values are
+   * named or positional.
+   */
+  static int sizeOfSimpleStatementValues(
+      SimpleStatement simpleStatement,
+      ProtocolVersion protocolVersion,
+      CodecRegistry codecRegistry) {
+    int size = 0;
+    if (!simpleStatement.getPositionalValues().isEmpty()) {
+      int totalValuesSize =
+          Values.sizeOfPositionalValues(
+              simpleStatement
+                  .getPositionalValues()
+                  .stream()
+                  // need to convert Object into ByteBuffer
+                  .map(val -> Conversions.encode(val, codecRegistry, protocolVersion))
+                  .collect(Collectors.toList()));
+      size += totalValuesSize;
+    } else if (!simpleStatement.getNamedValues().isEmpty()) {
+      int totalValuesSize =
+          Values.sizeOfNamedValues(
+              simpleStatement
+                  .getNamedValues()
+                  .entrySet()
+                  .stream()
+                  .collect(
+                      Collectors.toMap(
+                          // need to convert CqlIdentifier into String
+                          entry -> entry.getKey().asInternal(),
+                          // need to convert Object into ByteBuffer
+                          entry ->
+                              Conversions.encode(
+                                  entry.getValue(), codecRegistry, protocolVersion))));
+      size += totalValuesSize;
+    }
+    return size;
+  }
+
+  /** Return the size in bytes of a bound statement's values. */
+  static int sizeOfBoundStatementValues(BoundStatement boundStatement) {
+    return Values.sizeOfPositionalValues(boundStatement.getValues());
   }
 }

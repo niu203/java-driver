@@ -18,13 +18,18 @@ package com.datastax.oss.driver.internal.core.cql;
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.ProtocolVersion;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
+import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.ColumnDefinitions;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
 import com.datastax.oss.driver.api.core.type.DataType;
 import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
+import com.datastax.oss.driver.internal.core.ProtocolFeature;
+import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
 import com.datastax.oss.driver.internal.core.util.RoutingKey;
+import com.datastax.oss.protocol.internal.PrimitiveSizes;
+import com.datastax.oss.protocol.internal.request.query.Values;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
 import java.util.List;
@@ -425,5 +430,41 @@ public class DefaultBoundStatement implements BoundStatement {
         newPagingState,
         codecRegistry,
         protocolVersion);
+  }
+
+  @Override
+  public int computeSizeInBytes(DriverContext context) {
+
+    int size = Conversions.minimumRequestSize(this, context);
+
+    // BoundStatement's additional elements to take into account are:
+    // - prepared ID
+    // - result metadata ID
+    // - parameters
+    // - page size
+    // - paging state
+
+    // prepared ID
+    size += PrimitiveSizes.sizeOfShortBytes(preparedStatement.getId().array());
+
+    // result metadata ID
+    if (((InternalDriverContext) context)
+        .protocolVersionRegistry()
+        .supports(protocolVersion, ProtocolFeature.PREPARED_RESULT_METADATA_ID)) {
+      size += PrimitiveSizes.sizeOfShortBytes(preparedStatement.getResultMetadataId().array());
+    }
+
+    // parameters (always sent as positional values for bound statements)
+    size += Values.sizeOfPositionalValues(getValues());
+
+    // page size
+    size += PrimitiveSizes.INT;
+
+    // paging state
+    if (pagingState != null) {
+      size += PrimitiveSizes.sizeOfBytes(pagingState);
+    }
+
+    return size;
   }
 }

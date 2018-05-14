@@ -31,5 +31,19 @@ public enum ProtocolFeature {
    * @see <a href="https://issues.apache.org/jira/browse/CASSANDRA-10145">CASSANDRA-10145</a>
    */
   PER_REQUEST_KEYSPACE,
+
+  /**
+   * The ability to add a custom set of key/value pairs associated to each request.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/CASSANDRA-8553">CASSANDRA-8553</a>
+   */
+  CUSTOM_PAYLOAD,
+
+  /**
+   * The ability at the protocol level to detect when a prepared statement has had its columns altered.
+   *
+   * @see <a href="https://issues.apache.org/jira/browse/CASSANDRA-10786">CASSANDRA-10786</a>
+   */
+  PREPARED_RESULT_METADATA_ID,
   ;
 }

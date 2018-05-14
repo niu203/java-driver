@@ -17,10 +17,12 @@ package com.datastax.oss.driver.internal.core.cql;
 
 import com.datastax.oss.driver.api.core.CqlIdentifier;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
+import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
+import com.datastax.oss.protocol.internal.PrimitiveSizes;
 import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.Map;
@@ -414,5 +416,41 @@ public class DefaultSimpleStatement implements SimpleStatement {
         tracing,
         timestamp,
         newPagingState);
+  }
+
+  @Override
+  public int computeSizeInBytes(DriverContext context) {
+
+    int size = Conversions.minimumRequestSize(this, context);
+
+    // SimpleStatement's additional elements to take into account are:
+    // - query string
+    // - parameters (named or not)
+    // - per-query keyspace
+    // - page size
+    // - paging state
+
+    // query
+    size += PrimitiveSizes.sizeOfLongString(query);
+
+    // parameters
+    size +=
+        Conversions.sizeOfSimpleStatementValues(
+            this, context.protocolVersion(), context.codecRegistry());
+
+    // per-query keyspace
+    if (keyspace != null) {
+      size += PrimitiveSizes.sizeOfString(keyspace.asInternal());
+    }
+
+    // page size
+    size += PrimitiveSizes.INT;
+
+    // paging state
+    if (pagingState != null) {
+      size += PrimitiveSizes.sizeOfBytes(pagingState);
+    }
+
+    return size;
   }
 }

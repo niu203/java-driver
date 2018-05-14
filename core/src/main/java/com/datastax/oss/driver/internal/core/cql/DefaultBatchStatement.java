@@ -16,14 +16,19 @@
 package com.datastax.oss.driver.internal.core.cql;
 
 import com.datastax.oss.driver.api.core.CqlIdentifier;
+import com.datastax.oss.driver.api.core.ProtocolVersion;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
+import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.BatchType;
 import com.datastax.oss.driver.api.core.cql.BatchableStatement;
+import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
+import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
 import com.datastax.oss.driver.shaded.guava.common.collect.Iterables;
+import com.datastax.oss.protocol.internal.PrimitiveSizes;
 import java.nio.ByteBuffer;
 import java.util.Iterator;
 import java.util.List;
@@ -466,5 +471,64 @@ public class DefaultBatchStatement implements BatchStatement {
         tracing,
         newTimestamp,
         pagingState);
+  }
+
+  @Override
+  public int computeSizeInBytes(DriverContext context) {
+
+    int size = Conversions.minimumRequestSize(this, context);
+
+    // BatchStatement's additional elements to take into account are:
+    // - batch type
+    // - inner statements (simple or bound)
+    // - per-query keyspace
+
+    // batch type
+    size += PrimitiveSizes.BYTE;
+
+    // inner statements
+    size += PrimitiveSizes.SHORT; // number of statements
+    size +=
+        statements
+            .stream()
+            .mapToInt(
+                statement ->
+                    sizeOfInnerBatchStatementInBytes(
+                        statement, context.protocolVersion(), context.codecRegistry()))
+            .sum();
+
+    // per-query keyspace
+    if (keyspace != null) {
+      size += PrimitiveSizes.sizeOfString(keyspace.asInternal());
+    }
+
+    return size;
+  }
+
+  /**
+   * The size of a statement inside a batch query is different from the size of a complete
+   * Statement. The inner batch statements only include the query or prepared ID, and the values of
+   * the statement.
+   */
+  private Integer sizeOfInnerBatchStatementInBytes(
+      BatchableStatement statement, ProtocolVersion protocolVersion, CodecRegistry codecRegistry) {
+    int size = 0;
+
+    size +=
+        PrimitiveSizes
+            .BYTE; // for each inner statement, there is one byte for the "kind": prepared or string
+
+    if (statement instanceof SimpleStatement) {
+      size += PrimitiveSizes.sizeOfLongString(((SimpleStatement) statement).getQuery());
+      size +=
+          Conversions.sizeOfSimpleStatementValues(
+              ((SimpleStatement) statement), protocolVersion, codecRegistry);
+    } else if (statement instanceof BoundStatement) {
+      size +=
+          PrimitiveSizes.sizeOfShortBytes(
+              ((BoundStatement) statement).getPreparedStatement().getId().array());
+      size += Conversions.sizeOfBoundStatementValues(((BoundStatement) statement));
+    }
+    return size;
   }
 }
