@@ -41,6 +41,7 @@ import com.datastax.oss.driver.api.core.servererrors.UnavailableException;
 import com.datastax.oss.driver.api.core.servererrors.WriteTimeoutException;
 import com.datastax.oss.driver.api.core.session.throttling.RequestThrottler;
 import com.datastax.oss.driver.api.core.session.throttling.Throttled;
+import com.datastax.oss.driver.api.core.specex.SpeculativeExecutionPolicy;
 import com.datastax.oss.driver.internal.core.adminrequest.ThrottledAdminRequestHandler;
 import com.datastax.oss.driver.internal.core.adminrequest.UnexpectedResponseException;
 import com.datastax.oss.driver.internal.core.channel.DriverChannel;
@@ -118,6 +119,7 @@ public abstract class CqlRequestHandlerBase implements Throttled {
   private final List<ScheduledFuture<?>> scheduledExecutions;
   private final List<NodeResponseCallback> inFlightCallbacks;
   private final RetryPolicy retryPolicy;
+  private final SpeculativeExecutionPolicy speculativeExecutionPolicy;
   private final RequestThrottler throttler;
 
   // The errors on the nodes that were already tried (lazily initialized on the first error).
@@ -138,7 +140,6 @@ public abstract class CqlRequestHandlerBase implements Throttled {
     this.session = session;
     this.keyspace = session.getKeyspace();
     this.context = context;
-    this.queryPlan = context.loadBalancingPolicyWrapper().newQueryPlan(statement, session);
 
     if (statement.getConfigProfile() != null) {
       this.configProfile = statement.getConfigProfile();
@@ -150,6 +151,12 @@ public abstract class CqlRequestHandlerBase implements Throttled {
               ? config.getDefaultProfile()
               : config.getNamedProfile(profileName);
     }
+    this.queryPlan =
+        context
+            .loadBalancingPolicyWrapper()
+            .newQueryPlan(statement, configProfile.getName(), session);
+    this.retryPolicy = context.retryPolicy(configProfile.getName());
+    this.speculativeExecutionPolicy = context.speculativeExecutionPolicy(configProfile.getName());
     this.isIdempotent =
         (statement.isIdempotent() == null)
             ? configProfile.getBoolean(DefaultDriverOption.REQUEST_DEFAULT_IDEMPOTENCE)
@@ -172,7 +179,6 @@ public abstract class CqlRequestHandlerBase implements Throttled {
     this.timeout = configProfile.getDuration(DefaultDriverOption.REQUEST_TIMEOUT);
     this.timeoutFuture = scheduleTimeout(timeout);
 
-    this.retryPolicy = context.retryPolicy();
     this.activeExecutionsCount = new AtomicInteger(1);
     this.startedSpeculativeExecutionsCount = new AtomicInteger(0);
     this.scheduledExecutions = isIdempotent ? new CopyOnWriteArrayList<>() : null;
@@ -407,9 +413,7 @@ public abstract class CqlRequestHandlerBase implements Throttled {
             // Note that `node` is the first node of the execution, it might not be the "slow" one
             // if there were retries, but in practice retries are rare.
             long nextDelay =
-                context
-                    .speculativeExecutionPolicy()
-                    .nextExecution(node, keyspace, statement, nextExecution);
+                speculativeExecutionPolicy.nextExecution(node, keyspace, statement, nextExecution);
             if (nextDelay >= 0) {
               LOG.trace(
                   "[{}] Scheduling speculative execution {} in {} ms",

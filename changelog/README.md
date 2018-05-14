@@ -4,6 +4,7 @@
 
 ### 4.0.0-alpha4 (in progress)
 
+- [improvement] JAVA-1824: Make policies overridable in profiles
 - [improvement] JAVA-1755: Normalize usage of DEBUG/TRACE log levels
 - [improvement] JAVA-1803: Log driver version on first use
 - [improvement] JAVA-1792: Add AuthProvider callback to handle missing challenge from server

@@ -107,7 +107,7 @@ public class Conversions {
             .getProtocolCode();
     long timestamp = statement.getTimestamp();
     if (timestamp == Long.MIN_VALUE) {
-      timestamp = context.timestampGenerator().next();
+      timestamp = context.timestampGenerator(config.getName()).next();
     }
     CodecRegistry codecRegistry = context.codecRegistry();
     ProtocolVersion protocolVersion = context.protocolVersion();

@@ -114,7 +114,6 @@ public abstract class CqlPrepareHandlerBase implements Throttled {
     this.preparedStatementsCache = preparedStatementsCache;
     this.session = session;
     this.context = context;
-    this.queryPlan = context.loadBalancingPolicyWrapper().newQueryPlan(request, session);
 
     DriverConfigProfile configProfile;
     if (request.getConfigProfile() != null) {
@@ -127,6 +126,11 @@ public abstract class CqlPrepareHandlerBase implements Throttled {
               ? config.getDefaultProfile()
               : config.getNamedProfile(profileName);
     }
+    this.queryPlan =
+        context
+            .loadBalancingPolicyWrapper()
+            .newQueryPlan(request, configProfile.getName(), session);
+    this.retryPolicy = context.retryPolicy(configProfile.getName());
 
     this.result = new CompletableFuture<>();
     this.result.exceptionally(
@@ -154,7 +158,6 @@ public abstract class CqlPrepareHandlerBase implements Throttled {
 
     this.timeout = configProfile.getDuration(DefaultDriverOption.REQUEST_TIMEOUT);
     this.timeoutFuture = scheduleTimeout(timeout);
-    this.retryPolicy = context.retryPolicy();
     this.prepareOnAllNodes = configProfile.getBoolean(DefaultDriverOption.PREPARE_ON_ALL_NODES);
 
     this.throttler = context.requestThrottler();

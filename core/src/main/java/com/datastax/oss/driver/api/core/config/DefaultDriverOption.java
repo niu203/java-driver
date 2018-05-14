@@ -54,8 +54,8 @@ public enum DefaultDriverOption implements DriverOption {
   REQUEST_SERIAL_CONSISTENCY("request.serial-consistency", true),
   REQUEST_WARN_IF_SET_KEYSPACE("request.warn-if-set-keyspace", true),
   REQUEST_DEFAULT_IDEMPOTENCE("request.default-idempotence", true),
-  RETRY_POLICY_CLASS("request.retry-policy.class", true),
-  SPECULATIVE_EXECUTION_POLICY_CLASS("request.speculative-execution-policy.class", true),
+  RETRY_POLICY("request.retry-policy", true),
+  SPECULATIVE_EXECUTION_POLICY("request.speculative-execution-policy", false),
   SPECULATIVE_EXECUTION_MAX("request.speculative-execution-policy.max-executions", false),
   SPECULATIVE_EXECUTION_DELAY("request.speculative-execution-policy.delay", false),
   REQUEST_TRACE_ATTEMPTS("request.trace.attempts", true),
@@ -89,7 +89,7 @@ public enum DefaultDriverOption implements DriverOption {
   COALESCER_MAX_RUNS("connection.coalescer.max-runs-with-no-work", false),
   COALESCER_INTERVAL("connection.coalescer.reschedule-interval", false),
 
-  LOAD_BALANCING_POLICY_CLASS("load-balancing-policy.class", true),
+  LOAD_BALANCING_POLICY("load-balancing-policy", true),
   LOAD_BALANCING_LOCAL_DATACENTER("load-balancing-policy.local-datacenter", false),
   LOAD_BALANCING_FILTER_CLASS("load-balancing-policy.filter.class", false),
 
@@ -125,7 +125,7 @@ public enum DefaultDriverOption implements DriverOption {
   METADATA_NODE_STATE_LISTENER_CLASS("metadata.node-state-listener.class", false),
   METADATA_SCHEMA_CHANGE_LISTENER_CLASS("metadata.schema-change-listener.class", false),
 
-  TIMESTAMP_GENERATOR_CLASS("request.timestamp-generator.class", true),
+  TIMESTAMP_GENERATOR("request.timestamp-generator", true),
   TIMESTAMP_GENERATOR_FORCE_JAVA_CLOCK("request.timestamp-generator.force-java-clock", false),
   TIMESTAMP_GENERATOR_DRIFT_WARNING_THRESHOLD(
       "request.timestamp-generator.drift-warning.threshold", false),

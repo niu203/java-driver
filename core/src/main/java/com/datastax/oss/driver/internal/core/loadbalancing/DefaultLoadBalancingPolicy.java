@@ -64,8 +64,11 @@ public class DefaultLoadBalancingPolicy implements LoadBalancingPolicy {
   private volatile DistanceReporter distanceReporter;
   @VisibleForTesting volatile String localDc;
 
-  public DefaultLoadBalancingPolicy(DriverContext context) {
-    this(getLocalDcFromConfig(context), getFilterFromConfig(context), context);
+  public DefaultLoadBalancingPolicy(DriverContext context, String profileName) {
+    this(
+        getLocalDcFromConfig(context, profileName),
+        getFilterFromConfig(context, profileName),
+        context);
   }
 
   @VisibleForTesting
@@ -271,21 +274,27 @@ public class DefaultLoadBalancingPolicy implements LoadBalancingPolicy {
     // nothing to do
   }
 
-  private static String getLocalDcFromConfig(DriverContext context) {
-    DriverConfigProfile config = context.config().getDefaultProfile();
+  private static String getLocalDcFromConfig(DriverContext context, String profileName) {
+    DriverConfigProfile config =
+        (profileName.equals(DriverConfigProfile.DEFAULT_NAME))
+            ? context.config().getDefaultProfile()
+            : context.config().getNamedProfile(profileName);
     return (config.isDefined(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER))
         ? config.getString(DefaultDriverOption.LOAD_BALANCING_LOCAL_DATACENTER)
         : null;
   }
 
   @SuppressWarnings("unchecked")
-  private static Predicate<Node> getFilterFromConfig(DriverContext context) {
-    Predicate<Node> filterFromBuilder = ((InternalDriverContext) context).nodeFilter();
+  private static Predicate<Node> getFilterFromConfig(DriverContext context, String profileName) {
+    Predicate<Node> filterFromBuilder = ((InternalDriverContext) context).nodeFilter(profileName);
     return (filterFromBuilder != null)
         ? filterFromBuilder
         : (Predicate<Node>)
             Reflection.buildFromConfig(
-                    context, DefaultDriverOption.LOAD_BALANCING_FILTER_CLASS, Predicate.class)
+                    context,
+                    profileName,
+                    DefaultDriverOption.LOAD_BALANCING_FILTER_CLASS,
+                    Predicate.class)
                 .orElse(INCLUDE_ALL_NODES);
   }
 }

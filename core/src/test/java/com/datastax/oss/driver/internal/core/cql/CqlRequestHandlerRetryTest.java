@@ -18,6 +18,7 @@ package com.datastax.oss.driver.internal.core.cql;
 import static com.datastax.oss.driver.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atMost;
 
@@ -91,7 +92,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
                 assertThat(executionInfo.getSuccessfulExecutionIndex()).isEqualTo(0);
                 assertThat(executionInfo.getWarnings()).isEmpty();
 
-                Mockito.verifyNoMoreInteractions(harness.getContext().retryPolicy());
+                Mockito.verifyNoMoreInteractions(harness.getContext().retryPolicy(anyString()));
               });
     }
   }
@@ -118,7 +119,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
                 assertThat(error)
                     .isInstanceOf(InvalidQueryException.class)
                     .hasMessage("mock message");
-                Mockito.verifyNoMoreInteractions(harness.getContext().retryPolicy());
+                Mockito.verifyNoMoreInteractions(harness.getContext().retryPolicy(anyString()));
 
                 Mockito.verify(nodeMetricUpdater1).incrementCounter(DefaultNodeMetric.OTHER_ERRORS);
                 Mockito.verify(nodeMetricUpdater1)
@@ -140,7 +141,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
 
     try (RequestHandlerTestHarness harness = harnessBuilder.build()) {
       failureScenario.mockRetryPolicyDecision(
-          harness.getContext().retryPolicy(), RetryDecision.RETRY_NEXT);
+          harness.getContext().retryPolicy(anyString()), RetryDecision.RETRY_NEXT);
 
       CompletionStage<AsyncResultSet> resultSetFuture =
           new CqlRequestAsyncHandler(statement, harness.getSession(), harness.getContext(), "test")
@@ -180,7 +181,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
 
     try (RequestHandlerTestHarness harness = harnessBuilder.build()) {
       failureScenario.mockRetryPolicyDecision(
-          harness.getContext().retryPolicy(), RetryDecision.RETRY_SAME);
+          harness.getContext().retryPolicy(anyString()), RetryDecision.RETRY_SAME);
 
       CompletionStage<AsyncResultSet> resultSetFuture =
           new CqlRequestAsyncHandler(statement, harness.getSession(), harness.getContext(), "test")
@@ -219,7 +220,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
 
     try (RequestHandlerTestHarness harness = harnessBuilder.build()) {
       failureScenario.mockRetryPolicyDecision(
-          harness.getContext().retryPolicy(), RetryDecision.IGNORE);
+          harness.getContext().retryPolicy(anyString()), RetryDecision.IGNORE);
 
       CompletionStage<AsyncResultSet> resultSetFuture =
           new CqlRequestAsyncHandler(statement, harness.getSession(), harness.getContext(), "test")
@@ -257,7 +258,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
     try (RequestHandlerTestHarness harness = harnessBuilder.build()) {
 
       failureScenario.mockRetryPolicyDecision(
-          harness.getContext().retryPolicy(), RetryDecision.RETHROW);
+          harness.getContext().retryPolicy(anyString()), RetryDecision.RETHROW);
 
       CompletionStage<AsyncResultSet> resultSetFuture =
           new CqlRequestAsyncHandler(statement, harness.getSession(), harness.getContext(), "test")
@@ -297,7 +298,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
 
       if (shouldCallRetryPolicy) {
         failureScenario.mockRetryPolicyDecision(
-            harness.getContext().retryPolicy(), RetryDecision.RETHROW);
+            harness.getContext().retryPolicy(anyString()), RetryDecision.RETHROW);
       }
 
       CompletionStage<AsyncResultSet> resultSetFuture =
@@ -310,7 +311,7 @@ public class CqlRequestHandlerRetryTest extends CqlRequestHandlerTestBase {
                 assertThat(error).isInstanceOf(failureScenario.expectedExceptionClass);
                 // When non idempotent, the policy is bypassed completely:
                 if (!shouldCallRetryPolicy) {
-                  Mockito.verifyNoMoreInteractions(harness.getContext().retryPolicy());
+                  Mockito.verifyNoMoreInteractions(harness.getContext().retryPolicy(anyString()));
                 }
 
                 Mockito.verify(nodeMetricUpdater1).incrementCounter(failureScenario.errorMetric);

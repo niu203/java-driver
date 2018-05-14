@@ -19,7 +19,6 @@ import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
 import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.time.TimestampGenerator;
-import com.datastax.oss.driver.shaded.guava.common.annotations.VisibleForTesting;
 import java.util.concurrent.atomic.AtomicLong;
 import net.jcip.annotations.ThreadSafe;
 import org.slf4j.Logger;
@@ -39,15 +38,17 @@ abstract class MonotonicTimestampGenerator implements TimestampGenerator {
   private final long warningIntervalMillis;
   private final AtomicLong lastDriftWarning = new AtomicLong(Long.MIN_VALUE);
 
-  protected MonotonicTimestampGenerator(DriverContext context) {
-    this(buildClock(context), context);
+  protected MonotonicTimestampGenerator(DriverContext context, String profileName) {
+    this(buildClock(context, profileName), context, profileName);
   }
 
-  @VisibleForTesting
-  protected MonotonicTimestampGenerator(Clock clock, DriverContext context) {
+  protected MonotonicTimestampGenerator(Clock clock, DriverContext context, String profileName) {
     this.clock = clock;
 
-    DriverConfigProfile config = context.config().getDefaultProfile();
+    DriverConfigProfile config =
+        (profileName.equals(DriverConfigProfile.DEFAULT_NAME))
+            ? context.config().getDefaultProfile()
+            : context.config().getNamedProfile(profileName);
     this.warningThresholdMicros =
         (config.isDefined(DefaultDriverOption.TIMESTAMP_GENERATOR_DRIFT_WARNING_THRESHOLD))
             ? config
@@ -99,8 +100,11 @@ abstract class MonotonicTimestampGenerator implements TimestampGenerator {
     }
   }
 
-  private static Clock buildClock(DriverContext context) {
-    DriverConfigProfile config = context.config().getDefaultProfile();
+  private static Clock buildClock(DriverContext context, String profileName) {
+    DriverConfigProfile config =
+        (profileName.equals(DriverConfigProfile.DEFAULT_NAME))
+            ? context.config().getDefaultProfile()
+            : context.config().getNamedProfile(profileName);
     boolean forceJavaClock =
         config.isDefined(DefaultDriverOption.TIMESTAMP_GENERATOR_FORCE_JAVA_CLOCK)
             && config.getBoolean(DefaultDriverOption.TIMESTAMP_GENERATOR_FORCE_JAVA_CLOCK);
