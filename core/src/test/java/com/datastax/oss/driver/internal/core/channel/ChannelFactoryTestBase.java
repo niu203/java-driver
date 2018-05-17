@@ -22,6 +22,7 @@ import com.datastax.oss.driver.api.core.ProtocolVersion;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfig;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
+import com.datastax.oss.driver.api.core.metadata.Node;
 import com.datastax.oss.driver.internal.core.ProtocolVersionRegistry;
 import com.datastax.oss.driver.internal.core.TestResponses;
 import com.datastax.oss.driver.internal.core.context.EventBus;
@@ -226,6 +227,7 @@ public abstract class ChannelFactoryTestBase {
 
     @Override
     ChannelInitializer<Channel> initializer(
+        Node node,
         SocketAddress address,
         ProtocolVersion protocolVersion,
         DriverChannelOptions options,

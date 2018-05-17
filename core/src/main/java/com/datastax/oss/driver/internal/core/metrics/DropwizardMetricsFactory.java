@@ -83,7 +83,7 @@ public class DropwizardMetricsFactory implements MetricsFactory {
   @Override
   public NodeMetricUpdater newNodeUpdater(Node node) {
     return (registry == null)
-        ? new NoopNodeMetricUpdater()
+        ? NoopNodeMetricUpdater.INSTANCE
         : new DropwizardNodeMetricUpdater(node, enabledNodeMetrics, registry, context);
   }
 

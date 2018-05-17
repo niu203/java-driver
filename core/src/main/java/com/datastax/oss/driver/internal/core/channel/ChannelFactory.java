@@ -19,8 +19,12 @@ import com.datastax.oss.driver.api.core.ProtocolVersion;
 import com.datastax.oss.driver.api.core.UnsupportedProtocolVersionException;
 import com.datastax.oss.driver.api.core.config.DefaultDriverOption;
 import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
+import com.datastax.oss.driver.api.core.metadata.Node;
 import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
 import com.datastax.oss.driver.internal.core.context.NettyOptions;
+import com.datastax.oss.driver.internal.core.metadata.DefaultNode;
+import com.datastax.oss.driver.internal.core.metrics.NodeMetricUpdater;
+import com.datastax.oss.driver.internal.core.metrics.NoopNodeMetricUpdater;
 import com.datastax.oss.driver.internal.core.protocol.FrameDecoder;
 import com.datastax.oss.driver.internal.core.protocol.FrameEncoder;
 import com.datastax.oss.driver.shaded.guava.common.annotations.VisibleForTesting;
@@ -84,8 +88,18 @@ public class ChannelFactory {
     this.protocolVersion = newVersion;
   }
 
-  public CompletionStage<DriverChannel> connect(
+  @VisibleForTesting
+  CompletionStage<DriverChannel> connect(
       final SocketAddress address, DriverChannelOptions options) {
+    return connect(null, address, options);
+  }
+
+  public CompletionStage<DriverChannel> connect(final Node node, DriverChannelOptions options) {
+    return connect(node, node.getConnectAddress(), options);
+  }
+
+  private CompletionStage<DriverChannel> connect(
+      Node node, SocketAddress address, DriverChannelOptions options) {
     CompletableFuture<DriverChannel> resultFuture = new CompletableFuture<>();
 
     ProtocolVersion currentVersion;
@@ -99,11 +113,12 @@ public class ChannelFactory {
       isNegotiating = true;
     }
 
-    connect(address, options, currentVersion, isNegotiating, attemptedVersions, resultFuture);
+    connect(node, address, options, currentVersion, isNegotiating, attemptedVersions, resultFuture);
     return resultFuture;
   }
 
   private void connect(
+      Node node,
       SocketAddress address,
       DriverChannelOptions options,
       final ProtocolVersion currentVersion,
@@ -118,7 +133,7 @@ public class ChannelFactory {
             .group(nettyOptions.ioEventLoopGroup())
             .channel(nettyOptions.channelClass())
             .option(ChannelOption.ALLOCATOR, nettyOptions.allocator())
-            .handler(initializer(address, currentVersion, options, resultFuture));
+            .handler(initializer(node, address, currentVersion, options, resultFuture));
 
     DriverConfigProfile config = context.config().getDefaultProfile();
 
@@ -180,7 +195,14 @@ public class ChannelFactory {
                     "Failed to connect with protocol {}, retrying with {}",
                     currentVersion,
                     downgraded.get());
-                connect(address, options, downgraded.get(), true, attemptedVersions, resultFuture);
+                connect(
+                    node,
+                    address,
+                    options,
+                    downgraded.get(),
+                    true,
+                    attemptedVersions,
+                    resultFuture);
               } else {
                 resultFuture.completeExceptionally(
                     UnsupportedProtocolVersionException.forNegotiation(address, attemptedVersions));
@@ -196,6 +218,7 @@ public class ChannelFactory {
 
   @VisibleForTesting
   ChannelInitializer<Channel> initializer(
+      Node node,
       SocketAddress address,
       final ProtocolVersion protocolVersion,
       final DriverChannelOptions options,
@@ -236,7 +259,22 @@ public class ChannelFactory {
               .sslHandlerFactory()
               .map(f -> f.newSslHandler(channel, address))
               .map(h -> pipeline.addLast("ssl", h));
+
+          NodeMetricUpdater nodeMetricUpdater;
+          if (node instanceof DefaultNode) {
+            nodeMetricUpdater = ((DefaultNode) node).getMetricUpdater();
+          } else {
+            nodeMetricUpdater = NoopNodeMetricUpdater.INSTANCE;
+          }
           pipeline
+              .addLast(
+                  "inboundTrafficMeter",
+                  new InboundTrafficMeter(
+                      nodeMetricUpdater, context.metricsFactory().getSessionUpdater()))
+              .addLast(
+                  "outboundTrafficMeter",
+                  new OutboundTrafficMeter(
+                      nodeMetricUpdater, context.metricsFactory().getSessionUpdater()))
               .addLast("encoder", new FrameEncoder(context.frameCodec(), maxFrameLength))
               .addLast("decoder", new FrameDecoder(context.frameCodec(), maxFrameLength))
               // Note: HeartbeatHandler is inserted here once init completes
