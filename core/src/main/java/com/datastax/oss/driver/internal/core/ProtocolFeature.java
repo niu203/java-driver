@@ -40,7 +40,8 @@ public enum ProtocolFeature {
   CUSTOM_PAYLOAD,
 
   /**
-   * The ability at the protocol level to detect when a prepared statement has had its columns altered.
+   * The ability at the protocol level to detect when a prepared statement has had its columns
+   * altered.
    *
    * @see <a href="https://issues.apache.org/jira/browse/CASSANDRA-10786">CASSANDRA-10786</a>
    */
