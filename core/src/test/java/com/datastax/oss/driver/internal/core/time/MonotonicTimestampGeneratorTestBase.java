@@ -53,7 +53,7 @@ abstract class MonotonicTimestampGeneratorTestBase {
   public void setup() {
     MockitoAnnotations.initMocks(this);
 
-    Mockito.when(config.getNamedProfile(DriverConfigProfile.DEFAULT_NAME))
+    Mockito.when(config.getProfile(DriverConfigProfile.DEFAULT_NAME))
         .thenReturn(defaultConfigProfile);
     Mockito.when(context.config()).thenReturn(config);
 

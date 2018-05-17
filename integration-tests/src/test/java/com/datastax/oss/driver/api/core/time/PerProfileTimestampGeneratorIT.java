@@ -65,7 +65,7 @@ public class PerProfileTimestampGeneratorIT {
     // Sanity checks
     DriverContext context = session.getContext();
     DriverConfig config = context.config();
-    assertThat(config.getNamedProfiles()).containsKeys("profile1", "profile2");
+    assertThat(config.getProfiles()).containsKeys("profile1", "profile2");
 
     assertThat(context.timestampGenerators())
         .hasSize(3)
@@ -92,8 +92,8 @@ public class PerProfileTimestampGeneratorIT {
 
     // Same as above, but with the profile instances
     assertThatTimestampForProfile(config.getDefaultProfile()).isEqualTo(100);
-    assertThatTimestampForProfile(config.getNamedProfile("profile1")).isEqualTo(101);
-    assertThatTimestampForProfile(config.getNamedProfile("profile2")).isEqualTo(100);
+    assertThatTimestampForProfile(config.getProfile("profile1")).isEqualTo(101);
+    assertThatTimestampForProfile(config.getProfile("profile2")).isEqualTo(100);
 
     // Derived profiles should inherit their parent's generator
     DriverConfigProfile derivedProfile =
@@ -131,7 +131,7 @@ public class PerProfileTimestampGeneratorIT {
     private final int value;
 
     public ConstantTimestampGenerator(DriverContext context, String profileName) {
-      DriverConfigProfile config = context.config().getNamedProfile(profileName);
+      DriverConfigProfile config = context.config().getProfile(profileName);
       this.value = config.getInt(VALUE);
     }
 
