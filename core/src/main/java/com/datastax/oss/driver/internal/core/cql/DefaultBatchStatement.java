@@ -488,14 +488,11 @@ public class DefaultBatchStatement implements BatchStatement {
 
     // inner statements
     size += PrimitiveSizes.SHORT; // number of statements
-    size +=
-        statements
-            .stream()
-            .mapToInt(
-                statement ->
-                    sizeOfInnerBatchStatementInBytes(
-                        statement, context.protocolVersion(), context.codecRegistry()))
-            .sum();
+    for (BatchableStatement innerStatement : statements) {
+      size +=
+          sizeOfInnerBatchStatementInBytes(
+              innerStatement, context.protocolVersion(), context.codecRegistry());
+    }
 
     // per-query keyspace
     if (keyspace != null) {

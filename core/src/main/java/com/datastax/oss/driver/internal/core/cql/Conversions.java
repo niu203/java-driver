@@ -90,9 +90,9 @@ import com.datastax.oss.protocol.internal.util.Bytes;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Utility methods to convert to/from protocol messages.
@@ -489,32 +489,27 @@ public class Conversions {
       ProtocolVersion protocolVersion,
       CodecRegistry codecRegistry) {
     int size = 0;
+
     if (!simpleStatement.getPositionalValues().isEmpty()) {
-      int totalValuesSize =
-          Values.sizeOfPositionalValues(
-              simpleStatement
-                  .getPositionalValues()
-                  .stream()
-                  // need to convert Object into ByteBuffer
-                  .map(val -> Conversions.encode(val, codecRegistry, protocolVersion))
-                  .collect(Collectors.toList()));
-      size += totalValuesSize;
+
+      List<ByteBuffer> positionalValues =
+          new ArrayList<>(simpleStatement.getPositionalValues().size());
+      for (Object value : simpleStatement.getPositionalValues()) {
+        positionalValues.add(Conversions.encode(value, codecRegistry, protocolVersion));
+      }
+
+      size += Values.sizeOfPositionalValues(positionalValues);
+
     } else if (!simpleStatement.getNamedValues().isEmpty()) {
-      int totalValuesSize =
-          Values.sizeOfNamedValues(
-              simpleStatement
-                  .getNamedValues()
-                  .entrySet()
-                  .stream()
-                  .collect(
-                      Collectors.toMap(
-                          // need to convert CqlIdentifier into String
-                          entry -> entry.getKey().asInternal(),
-                          // need to convert Object into ByteBuffer
-                          entry ->
-                              Conversions.encode(
-                                  entry.getValue(), codecRegistry, protocolVersion))));
-      size += totalValuesSize;
+
+      Map<String, ByteBuffer> namedValues = new HashMap<>(simpleStatement.getNamedValues().size());
+      for (Map.Entry<CqlIdentifier, Object> value : simpleStatement.getNamedValues().entrySet()) {
+        namedValues.put(
+            value.getKey().asInternal(),
+            Conversions.encode(value.getValue(), codecRegistry, protocolVersion));
+      }
+
+      size += Values.sizeOfNamedValues(namedValues);
     }
     return size;
   }
