@@ -20,6 +20,7 @@ import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
 import com.datastax.oss.driver.api.core.context.DriverContext;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
+import com.datastax.oss.driver.api.core.time.ServerSideTimestampGenerator;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableMap;
 import com.datastax.oss.protocol.internal.PrimitiveSizes;
@@ -429,6 +430,7 @@ public class DefaultSimpleStatement implements SimpleStatement {
     // - per-query keyspace
     // - page size
     // - paging state
+    // - timestamp
 
     // query
     size += PrimitiveSizes.sizeOfLongString(query);
@@ -449,6 +451,12 @@ public class DefaultSimpleStatement implements SimpleStatement {
     // paging state
     if (pagingState != null) {
       size += PrimitiveSizes.sizeOfBytes(pagingState);
+    }
+
+    // timestamp
+    if (!(context.timestampGenerator() instanceof ServerSideTimestampGenerator)
+        || timestamp != Long.MIN_VALUE) {
+      size += PrimitiveSizes.LONG;
     }
 
     return size;

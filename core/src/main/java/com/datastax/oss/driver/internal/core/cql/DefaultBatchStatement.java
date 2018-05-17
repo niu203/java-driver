@@ -25,6 +25,7 @@ import com.datastax.oss.driver.api.core.cql.BatchableStatement;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
+import com.datastax.oss.driver.api.core.time.ServerSideTimestampGenerator;
 import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.datastax.oss.driver.shaded.guava.common.collect.ImmutableList;
 import com.datastax.oss.driver.shaded.guava.common.collect.Iterables;
@@ -482,6 +483,7 @@ public class DefaultBatchStatement implements BatchStatement {
     // - batch type
     // - inner statements (simple or bound)
     // - per-query keyspace
+    // - timestamp
 
     // batch type
     size += PrimitiveSizes.BYTE;
@@ -497,6 +499,13 @@ public class DefaultBatchStatement implements BatchStatement {
     // per-query keyspace
     if (keyspace != null) {
       size += PrimitiveSizes.sizeOfString(keyspace.asInternal());
+    }
+
+    // timestamp
+    if (!(context.timestampGenerator() instanceof ServerSideTimestampGenerator)
+        || timestamp != Long.MIN_VALUE) {
+
+      size += PrimitiveSizes.LONG;
     }
 
     return size;

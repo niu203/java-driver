@@ -18,6 +18,8 @@ package com.datastax.oss.driver.internal.core.cql;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import com.datastax.oss.driver.api.core.DefaultProtocolVersion;
+import com.datastax.oss.driver.api.core.config.DriverConfig;
+import com.datastax.oss.driver.api.core.config.DriverConfigProfile;
 import com.datastax.oss.driver.api.core.cql.BatchStatement;
 import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.ColumnDefinition;
@@ -26,6 +28,8 @@ import com.datastax.oss.driver.api.core.cql.DefaultBatchType;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.cql.SimpleStatement;
 import com.datastax.oss.driver.api.core.cql.Statement;
+import com.datastax.oss.driver.api.core.time.AtomicTimestampGenerator;
+import com.datastax.oss.driver.api.core.time.TimestampGenerator;
 import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.datastax.oss.driver.internal.core.CassandraProtocolVersionRegistry;
 import com.datastax.oss.driver.internal.core.context.InternalDriverContext;
@@ -56,6 +60,8 @@ public class StatementSizeTest {
 
   @Mock PreparedStatement preparedStatement;
   @Mock InternalDriverContext driverContext;
+  @Mock DriverConfig config;
+  @Mock DriverConfigProfile defaultConfigProfile;
 
   @Before
   public void setup() {
@@ -78,6 +84,10 @@ public class StatementSizeTest {
     Mockito.when(driverContext.codecRegistry()).thenReturn(CodecRegistry.DEFAULT);
     Mockito.when(driverContext.protocolVersionRegistry())
         .thenReturn(new CassandraProtocolVersionRegistry(null));
+    Mockito.when(config.getDefaultProfile()).thenReturn(defaultConfigProfile);
+    Mockito.when(driverContext.config()).thenReturn(config);
+    TimestampGenerator timestampGenerator = new AtomicTimestampGenerator(driverContext);
+    Mockito.when(driverContext.timestampGenerator()).thenReturn(timestampGenerator);
   }
 
   private ColumnDefinition phonyColumnDef(

@@ -475,7 +475,6 @@ public class Conversions {
 
     size += PrimitiveSizes.SHORT; // size of consistency level
     size += PrimitiveSizes.SHORT; // size of serial consistency level
-    size += PrimitiveSizes.LONG; // size of default timestamp
 
     return size;
   }

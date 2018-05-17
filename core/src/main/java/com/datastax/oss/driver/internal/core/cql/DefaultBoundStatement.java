@@ -23,6 +23,7 @@ import com.datastax.oss.driver.api.core.cql.BoundStatement;
 import com.datastax.oss.driver.api.core.cql.ColumnDefinitions;
 import com.datastax.oss.driver.api.core.cql.PreparedStatement;
 import com.datastax.oss.driver.api.core.metadata.token.Token;
+import com.datastax.oss.driver.api.core.time.ServerSideTimestampGenerator;
 import com.datastax.oss.driver.api.core.type.DataType;
 import com.datastax.oss.driver.api.core.type.codec.registry.CodecRegistry;
 import com.datastax.oss.driver.internal.core.ProtocolFeature;
@@ -443,6 +444,7 @@ public class DefaultBoundStatement implements BoundStatement {
     // - parameters
     // - page size
     // - paging state
+    // - timestamp
 
     // prepared ID
     size += PrimitiveSizes.sizeOfShortBytes(preparedStatement.getId().array());
@@ -463,6 +465,12 @@ public class DefaultBoundStatement implements BoundStatement {
     // paging state
     if (pagingState != null) {
       size += PrimitiveSizes.sizeOfBytes(pagingState);
+    }
+
+    // timestamp
+    if (!(context.timestampGenerator() instanceof ServerSideTimestampGenerator)
+        || timestamp != Long.MIN_VALUE) {
+      size += PrimitiveSizes.LONG;
     }
 
     return size;
