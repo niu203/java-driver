@@ -131,10 +131,7 @@ public class PerProfileTimestampGeneratorIT {
     private final int value;
 
     public ConstantTimestampGenerator(DriverContext context, String profileName) {
-      DriverConfigProfile config =
-          (profileName.equals(DriverConfigProfile.DEFAULT_NAME))
-              ? context.config().getDefaultProfile()
-              : context.config().getNamedProfile(profileName);
+      DriverConfigProfile config = context.config().getNamedProfile(profileName);
       this.value = config.getInt(VALUE);
     }
 
