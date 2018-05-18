@@ -89,12 +89,11 @@ public class ChannelFactory {
   }
 
   @VisibleForTesting
-  CompletionStage<DriverChannel> connect(
-      final SocketAddress address, DriverChannelOptions options) {
+  CompletionStage<DriverChannel> connect(SocketAddress address, DriverChannelOptions options) {
     return connect(null, address, options);
   }
 
-  public CompletionStage<DriverChannel> connect(final Node node, DriverChannelOptions options) {
+  public CompletionStage<DriverChannel> connect(Node node, DriverChannelOptions options) {
     return connect(node, node.getConnectAddress(), options);
   }
 
@@ -121,7 +120,7 @@ public class ChannelFactory {
       Node node,
       SocketAddress address,
       DriverChannelOptions options,
-      final ProtocolVersion currentVersion,
+      ProtocolVersion currentVersion,
       boolean isNegotiating,
       List<ProtocolVersion> attemptedVersions,
       CompletableFuture<DriverChannel> resultFuture) {
@@ -220,8 +219,8 @@ public class ChannelFactory {
   ChannelInitializer<Channel> initializer(
       Node node,
       SocketAddress address,
-      final ProtocolVersion protocolVersion,
-      final DriverChannelOptions options,
+      ProtocolVersion protocolVersion,
+      DriverChannelOptions options,
       CompletableFuture<DriverChannel> resultFuture) {
     return new ChannelInitializer<Channel>() {
       @Override
